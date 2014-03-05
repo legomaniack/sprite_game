@@ -1,0 +1,21 @@
+[level]
+
+tileset: beach_cave_tiles.png
+
+map:	****************
+	*....**.***....*
+	**...**........*
+	**...**.***....*
+	*.......***....*
+	****************
+
+background color: #584060
+start sector: 1,1
+
+[.]
+type: floor
+walkable: yes
+
+[*]
+type: wall
+walkable: no
