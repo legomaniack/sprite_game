@@ -4,11 +4,13 @@
 
 FPS = 30
 
+DEBUG = True
+
 WIN_HEIGHT = 600
 WIN_WIDTH = 800
 SPRITE_SIZE = 24
 
-import pygame, sys, configparser
+import pygame, sys, configparser, math
 from pygame.locals import *
 from random import randint
 
@@ -33,20 +35,6 @@ def debug(msg, typ ='m'):
         print("    {0!s}: " + msg).format(typ)
 
 
-
-#SPRITESHEET ------------------
-
-"""spritesheet = pygame.image.load('beach_cave_tiles.png')
-tiles = []
-tiles_ground = []
-tiles_wall = []
-
-for row in range(12):
-    tiles.append([])
-    for col in range(4):
-        tiles[row].append(spritesheet.subsurface((col*24, row*24, 24, 24)))
-
-"""
 #EVENTS & EVENT HANDLERS ------
 
 class Event:
@@ -82,13 +70,14 @@ class GameStartEvent(Event):
 
 class CharactorMoveRequest(Event):
     def __init__(self, direction):
-        self.name = "Charactor move request"
+        self.name = "Charactor Move Request"
         self.direction = direction
 
 class CharactorMoveEvent(Event):
-    def __init__(self, charactor):
+    def __init__(self, charactor, direction):
         self.name = "Charactor Move Event"
         self.charactor = charactor
+        self.direction = direction
 
 class CharactorPlaceEvent(Event):
     def __init__(self, charactor):
@@ -100,6 +89,11 @@ class CharactorSpriteEvent(Event):
         self.name = "Charactor Sprite Event"
         self.charactor = charactor
         self.file = file
+
+class SpriteMoveEvent(Event):
+    def __init__(self, charactor):
+        self.name = "Sprite Move Event"
+        self.charactor = charactor
         
 
 ###
@@ -118,7 +112,7 @@ class EventManager:
             del self.listeners[ listener ]
 
     def post(self, event):
-        if not isinstance(event, TickEvent):
+        if not isinstance(event, TickEvent) and DEBUG:
             debug(event.name)
         for listener in self.listeners:
             listener.notify(event)
@@ -187,7 +181,7 @@ class PygameView:
     def __init__(self, event_manager):
         self.event_manager = event_manager
         self.event_manager.register_listener(self)
-        self.sprites = []
+        self.sprites = {}
 
         self.screen = pygame.display.set_mode((WIN_WIDTH,WIN_HEIGHT))
         self.camera = None #To use the camera, .update() on rect to follow, then use .apply(rect) instead of rect
@@ -199,8 +193,16 @@ class PygameView:
             for c in range(len(self.game_map.sectors[r])):
                 self.screen.blit(self.game_map.sectors[r][c].sprite, (c*SPRITE_SIZE, r*SPRITE_SIZE))
 
+    def update_sprites(self):
+        for c in self.sprites:
+            s = self.sprites[c]
+            updates = s.update()
+            if 'move' in updates:
+                self.event_manager.post(SpriteMoveEvent(s.charactor))
+
     def draw_sprites(self):
-        for s in self.sprites:
+        for c in self.sprites:
+            s = self.sprites[c]
             self.screen.blit(s.sprite, s.get_rect())
 
     def draw_everything(self):
@@ -214,27 +216,83 @@ class PygameView:
                 self.screen.blit(self.game_map.tiles[r][c], (c*SPRITE_SIZE, r*SPRITE_SIZE))
         pygame.display.flip()
 
-        
+    def get_sprite(self, charactor):
+        return self.sprites[id(charactor)]
 
     def notify(self, event):
         if isinstance(event, TickEvent):
             #self.test_tiles()
             self.draw_everything()
+            self.update_sprites()
+        if isinstance(event, CharactorMoveEvent):
+            self.get_sprite(event.charactor).moving = True
+            self.get_sprite(event.charactor).direction = event.direction
         if isinstance(event, MapDrawnEvent):
             self.game_map = event.map_
             self.camera = Camera(basic_camera, self.game_map.width, self.game_map.height)
         if isinstance(event, CharactorSpriteEvent):
-            self.sprites.append(CharatorSprite(event.charactor))
+            self.sprites[id(event.charactor)] = CharatorSprite(event.charactor)
+            if event.file != None:
+                self.get_sprite(self.charator).build(event.file)
 
 class CharatorSprite:
     def __init__(self, charactor):
-        self.charator = charactor
+        self.charactor = charactor
+        self.sprites = [] #2D array, seperated by direction, and then loop iteration
+        self.moving = False
+        self.counter = 0
+        self.direction = 3
         self.sprite = test_sprite
+        self.x = self.charactor.sector.pos[0] * SPRITE_SIZE
+        self.y = self.charactor.sector.pos[1] * SPRITE_SIZE
 
+    def update(self):
+        update_events = []
+        if not self.is_moved():
+            #set sprite
+            xdir, ydir = self.get_move_dir()
+            self.x += xdir*4
+            self.y += ydir*4
+            self.counter += 1
+        if self.moving and self.counter == 5:
+            self.counter = 0
+            self.x = self.charactor.sector.pos[0] * SPRITE_SIZE
+            self.y = self.charactor.sector.pos[1] * SPRITE_SIZE
+            update_events.append('move')
+            self.moving = False
+        return update_events
+
+    def is_moved(self):
+        return (self.x == self.charactor.sector.pos[0] * SPRITE_SIZE and self.y == self.charactor.sector.pos[1] * SPRITE_SIZE)
+
+    def get_move_dir(self):
+        xcng = (self.charactor.sector.pos[0] * SPRITE_SIZE) - self.x
+        ycng = (self.charactor.sector.pos[1] * SPRITE_SIZE) - self.y
+        if xcng != 0:
+            xcng = math.copysign(1, xcng)
+        if ycng != 0:
+            ycng = math.copysign(1, ycng)
+        return xcng, ycng
+        
+    def get_sector_rect(self):
+        x = self.charactor.sector.pos[0] * SPRITE_SIZE
+        y = self.charactor.sector.pos[1] * SPRITE_SIZE
+        return pygame.Rect(x, y, SPRITE_SIZE, SPRITE_SIZE)
+    
     def get_rect(self):
-        x = self.charator.sector.pos[0] * SPRITE_SIZE
-        y = self.charator.sector.pos[1] * SPRITE_SIZE
-        return pygame.Rect(x, y, SPRITE_SIZE, SPRITE_SIZE)    
+        return pygame.Rect(self.x, self.y, SPRITE_SIZE, SPRITE_SIZE)
+
+    def load_spritesheet(self, file):
+        self.spritesheet = pygame.image.load(file)
+        self.sprites = []
+        width = int(self.spritesheet.get_width()/SPRITE_SIZE)
+        height = int(self.spritesheet.get_height()/SPRITE_SIZE)
+
+        for row in range(height):
+            self.sprites.append([])
+            for col in range(width):
+                self.sprites[row].append(self.spritesheet.subsurface((col*SPRITE_SIZE, row*SPRITE_SIZE, SPRITE_SIZE, SPRITE_SIZE)))
+        
                                  
 
 class Camera:
@@ -532,18 +590,19 @@ class Charactor:
     def __init__(self, event_manager):
         self.event_manager = event_manager
         self.event_manager.register_listener(self)
-
+        self.done_moving = True
         self.sector = None
 
     def move(self, direction):
-        if self.sector.move_possible_to(direction):
+        if self.sector.move_possible_to(direction) and self.done_moving:
             self.sector = self.sector.neighbors[direction]
+            self.done_moving = False
             
-            self.event_manager.post(CharactorMoveEvent(self))
+            self.event_manager.post(CharactorMoveEvent(self, direction))
 
     def place(self, sector):
         self.sector = sector
-        
+
         self.event_manager.post(CharactorPlaceEvent(self))
 
     def build(self, file=None):
@@ -555,6 +614,9 @@ class Charactor:
             self.place(game_map.start_sector)
         if isinstance(event, CharactorMoveRequest):
             self.move(event.direction)
+        if isinstance(event, SpriteMoveEvent):
+            if event.charactor == self:
+                self.done_moving = True
     
             
 
