@@ -4,13 +4,22 @@
 
 FPS = 30
 
-WIN_HEIGHT = 600
+WIN_HEIGHT = 800
 WIN_WIDTH = 800
 SPRITE_SIZE = 24
 
 import pygame, sys, configparser
 from pygame.locals import *
 from random import randint
+import gen_map
+#from pprint import pprint
+
+def pprint(matrix):
+	s = [[str(e) for e in row] for row in matrix]
+	lens = [max(map(len, col)) for col in zip(*s)]
+	fmt = ' '.join('{{:{}}}'.format(x) for x in lens)
+	table = [fmt.format(*row) for row in s]
+	print ('\n'.join(table))
 
 pygame.init()
 
@@ -324,10 +333,13 @@ class Map:
             event_manager.post(QuitEvent())
         debug("Loading spritesheet '{0!s}'".format(map_reader['level']['tileset']))
         self.load_spritesheet(map_reader['level']['tileset'])
-        debug("Parsing map file")
-        self.layout = map_reader['level']['map'].split("\n")
+        #debug("Parsing map file")
+        #self.layout = map_reader['level']['map'].split("\n")
+        map_grid = gen_map.Grid(20, 20)
+        map_grid.gen()
+        self.layout = map_grid.grid
         debug("Map loaded: ")
-        print(map_reader['level']['map'])
+        pprint(self.layout)
         self.background_color = pygame.Color(map_reader['level']['background color'])
 
         debug("Building map")
@@ -339,8 +351,9 @@ class Map:
             for c in range(len(self.layout[r])):
                 new_sector = Sector(map_reader[self.layout[r][c]]['type'], map_reader.getboolean(self.layout[r][c],'walkable'), (c,r))
                 self.sectors[r].append(new_sector)
-        s_s = map_reader['level']['start sector'].split(',')
-        self.start_sector = self.sectors[int(s_s[1])][int(s_s[0])]
+        pprint(self.sectors)
+        s_s = map_grid.start_sector
+        self.start_sector = self.sectors[int(s_s[0])][int(s_s[1])]
         
 
         debug("Building list of neighbors")
