@@ -103,7 +103,7 @@ class SpriteMoveEvent(Event):
     def __init__(self, charactor):
         self.name = "Sprite Move Event"
         self.charactor = charactor
-        
+
 
 ###
 
@@ -126,7 +126,7 @@ class EventManager:
         for listener in self.listeners:
             listener.notify(event)
 
-            
+
 
 #CONTROLLER --------------------
 
@@ -142,10 +142,10 @@ class KeyboardController:
                 ev = None
                 if event.type == QUIT or (event.type == KEYDOWN and event.key == K_ESCAPE):
                     ev = QuitEvent()
-                    
+
                 elif event.type == KEYDOWN and (event.key == K_w):
                     ev = CharactorMoveRequest(1)
-                    
+
                 elif event.type == KEYDOWN and (event.key == K_a):
                     ev = CharactorMoveRequest(3)
 
@@ -217,7 +217,7 @@ class PygameView:
     def draw_everything(self):
         self.draw_map()
         self.draw_sprites()
-        pygame.display.flip()        
+        pygame.display.flip()
 
     def test_tiles(self):
         for r in range(len(self.game_map.tiles)):
@@ -282,12 +282,12 @@ class CharatorSprite:
         if ycng != 0:
             ycng = math.copysign(1, ycng)
         return xcng, ycng
-        
+
     def get_sector_rect(self):
         x = self.charactor.sector.pos[0] * SPRITE_SIZE
         y = self.charactor.sector.pos[1] * SPRITE_SIZE
         return pygame.Rect(x, y, SPRITE_SIZE, SPRITE_SIZE)
-    
+
     def get_rect(self):
         return pygame.Rect(self.x, self.y, SPRITE_SIZE, SPRITE_SIZE)
 
@@ -301,8 +301,8 @@ class CharatorSprite:
             self.sprites.append([])
             for col in range(width):
                 self.sprites[row].append(self.spritesheet.subsurface((col*SPRITE_SIZE, row*SPRITE_SIZE, SPRITE_SIZE, SPRITE_SIZE)))
-        
-                                 
+
+
 
 class Camera:
     def __init__(self, camera_func, width, height):
@@ -335,7 +335,7 @@ def complex_camera(camera, target_rect):
     t = min(0, t)                           # stop scrolling at the top
 
     return Rect(l, t, w, h)
-        
+
 
 #MODEL ------------------------
 
@@ -380,7 +380,7 @@ class Map:
             self.tiles.append([])
             for col in range(width):
                 self.tiles[row].append(self.spritesheet.subsurface((col*SPRITE_SIZE, row*SPRITE_SIZE, SPRITE_SIZE, SPRITE_SIZE)))
-        
+
     def load_map(self, file):
         map_reader = configparser.ConfigParser()
         debug("Loading map file '{0!s}'".format(file))
@@ -412,7 +412,7 @@ class Map:
         pprint(self.sectors)
         s_s = map_grid.start_sector
         self.start_sector = self.sectors[int(s_s[0])][int(s_s[1])]
-        
+
 
         debug("Building list of neighbors")
         self.calc_neighbors()
@@ -427,7 +427,7 @@ class Map:
             if c >= 0 and c < len(self.sectors[r]):
                 return self.sectors[r][c]
         return None
-                                       
+
     def calc_neighbors(self):                       #012
         for r in range(len(self.sectors)):          #3 4
             for c in range(len(self.sectors[r])):   #567
@@ -449,7 +449,7 @@ class Map:
                         bi = '0'+bi
                 bi = '0b'+bi
                 s.arrangement = int(bi, 2)
-                
+
                 bio = ""
                 for i in (1,3,4,6):
                     t = n[i]
@@ -477,20 +477,20 @@ class Map:
         if randint(0, 3) == 0:
             return s[randint(0, len(s)-1)]
         return primary
-                    
+
     def calc_map_sprites(self):
         for r in range(len(self.sectors)):
             for c in range(len(self.sectors[r])):
                 s = self.sectors[r][c]
                 n = s.neighbors     #        1      1 2
-                t = self.tiles      #       2 4  
+                t = self.tiles      #       2 4
                 p = s.sprite        #        8      4 8
                 if s.sprite_type == "floor":
                     if s.ortho == 0:
                         p = self.get_random_sprite(t[1][1],t[1][2],t[2][1],t[2][2])
                     elif s.ortho == 15:
                         p = t[1][1]
-                                            
+
                     #Adjacent to wall
                     elif s.ortho == 1:
                         p = t[0][1]
@@ -500,7 +500,7 @@ class Map:
                         p = t[2][3]
                     elif s.ortho == 8:
                         p = t[3][1]
-                        
+
                     #Corner
                     elif s.ortho == 3:
                         p = t[0][0]
@@ -517,7 +517,7 @@ class Map:
                     elif s.ortho in (6, 14, 7):
                         p = t[4][1]
 
-                
+
                 elif s.sprite_type == "wall":
                     #Background Wall & Inner corner
                     if s.ortho == 15:
@@ -577,7 +577,7 @@ class Map:
                     p = t[4][3]
 
                 s.sprite = p
-                                   
+
 
 class Sector:
     def __init__(self, s_t, w, pos):
@@ -588,13 +588,13 @@ class Sector:
         self.arrangement = 0
         self.ortho = 0
         self.diag = 0
-        self.neighbors = [None]*8   # 012 
+        self.neighbors = [None]*8   # 012
                                     # 3 4
                                     # 567
 
     def move_possible_to(self, direction):
         return self.neighbors[direction].walkable
-        
+
     def __repr__(self):
         return self.sprite_type
 
@@ -610,7 +610,7 @@ class Charactor:
         if self.sector.move_possible_to(direction) and self.done_moving:
             self.sector = self.sector.neighbors[direction]
             self.done_moving = False
-            
+
             self.event_manager.post(CharactorMoveEvent(self, direction))
 
     def place(self, sector):
@@ -630,16 +630,16 @@ class Charactor:
         if isinstance(event, SpriteMoveEvent):
             if event.charactor == self:
                 self.done_moving = True
-    
-            
 
-        
+
+
+
 
 #MAIN -------------------------
 
 def main():
     event_manager = EventManager()
-    
+
     keybd = KeyboardController(event_manager)
     spinner = CPUSpinnerController(event_manager)
     pyview = PygameView(event_manager)
@@ -651,7 +651,7 @@ def main():
     #Game has Exited
     pygame.quit()
     sys.exit()
-    
+
 
 if __name__ == "__main__":
     main()
