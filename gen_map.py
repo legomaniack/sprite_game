@@ -12,11 +12,12 @@ def pprint(matrix):
 WIDTH = 20
 HEIGHT = 20
 
-key = [
-	"*", 	# Wall
-	"."		# Floor
-]
-	
+key = {
+	"*": {"type": "wall", "walkable": False},
+	".": {"type": "floor", "walkable": True},
+	"#": {"type": "stairs", "walkable": True}
+}
+
 class Grid:
 	def __init__(self, w, h):
 		self.width = w
@@ -25,7 +26,7 @@ class Grid:
 		for r in range(h):
 			self.grid.append(["*"]*w)
 		self.rooms = []
-	
+
 	def gen(self):
 		for i in range(1,4):
 			gen = False
@@ -71,13 +72,20 @@ class Grid:
 				print(r)
 				r.apply(self.grid)
 		start_room = self.rooms[randint(0,len(self.rooms)-1)]
+		stair_room = self.rooms[randint(0,len(self.rooms)-1)]
 		rand_c = randint(start_room.left,start_room.right-1)
 		rand_r = randint(start_room.top, start_room.bottom-1)
 		self.start_sector = (rand_c,rand_r)
-		pprint(self.grid)
-			
-				
-		
+		rand_c = randint(stair_room.left,stair_room.right-1)
+		rand_r = randint(stair_room.top, stair_room.bottom-1)
+		while (rand_c, rand_r) == self.start_sector:
+			rand_c = randint(stair_room.left,stair_room.right-1)
+			rand_r = randint(stair_room.top, stair_room.bottom-1)
+		self.grid[rand_c][rand_r] = '#'
+		#pprint(self.grid)
+
+
+
 
 class Point:
 	def __init__(self, x, y):
@@ -92,12 +100,12 @@ class Room:
 		self.height = h
 		self.bottom = t+h
 		self.right = l+w
-	
+
 	def contains(self, point):
 		if (point.x >= self.left and point.x < self.right) and (point.y >= self.top and point.y < self.bottom):
 			return True
-		return False 
-	
+		return False
+
 	def intersects(self, room, typ="both"):
 		if typ == "both" or typ == "vert":
 			if self.right <= room.left:
@@ -110,19 +118,18 @@ class Room:
 			if self.top >= room.bottom:
 				return False
 		return True
-	
+
 	def apply(self, grid, label="."):
 		for r in range(len(grid)):
 			for c in range(len(grid[r])):
 				p = Point(r,c)
 				if self.contains(p):
 					grid[r][c] = label
-	
+
 	def __repr__(self):
 		return "{!s} x {!s} Room from ({!s},{!s}) to ({!s},{!s})".format(self.width, self.height, self.left, self.top, self. right, self.bottom)
-				
-if __name__ == "__main__":	
+
+if __name__ == "__main__":
 	g = Grid(WIDTH, HEIGHT)
 	g.gen()
 	pprint(g.grid)
-
